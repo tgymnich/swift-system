@@ -15,7 +15,7 @@
 /// in the same way as you manage a raw C file handle.
 @frozen
 // @available(macOS 10.16, iOS 14.0, watchOS 7.0, tvOS 14.0, *)
-public struct FileDescriptor: RawRepresentable, Hashable, Codable {
+public struct FileDescriptor: RawRepresentable, Cloesable, Hashable, Codable {
   /// The raw C file handle.
   @_alwaysEmitIntoClient
   public let rawValue: CInt
@@ -430,4 +430,27 @@ extension FileDescriptor.OpenOptions
 
   /// A textual representation of the open options, suitable for debugging.
   public var debugDescription: String { self.description }
+}
+
+public protocol Cloesable {
+    func close() throws
+}
+
+extension Optional: Cloesable where Wrapped: Cloesable {
+    public func close() throws {
+        try self?.close()
+    }
+}
+
+/// Automatically closes the wrapped file descriptor on deinit.
+@propertyWrapper public final class AutoClosing<Descriptor: Cloesable> {
+    public var wrappedValue: Descriptor
+
+    public init(wrappedValue: Descriptor) {
+        self.wrappedValue = wrappedValue
+    }
+
+    deinit {
+        try? wrappedValue.close()
+    }
 }
